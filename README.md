@@ -46,6 +46,25 @@ The pipeline requires a GitHub Personal Access Token with **full enterprise acce
    - Value: Your generated PAT
    - Click "Add secret"
 
+### Enterprise Configuration
+
+The pipeline requires your specific enterprise slug to be configured as a repository variable.
+
+#### Setup Enterprise Variable:
+
+1. **Find Your Enterprise Slug**:
+   - Your enterprise slug is the name in your enterprise URL
+   - For example: `https://github.com/enterprises/my-company` → slug is `my-company`
+   - Or check your enterprise settings page for the exact slug
+
+2. **Configure Repository Variable**:
+   - Go to your repository Settings → Secrets and variables → Actions
+   - Click on the "Variables" tab
+   - Click "New repository variable"
+   - Name: `ENTERPRISE_SLUG`
+   - Value: Your enterprise slug (e.g., `my-company`)
+   - Click "Add variable"
+
 ## 🗂️ Repository Structure
 
 ```text
@@ -73,7 +92,7 @@ schedule:
 
 ### 2. Data Collection Process
 
-1. **Organization Discovery**: Uses `/orgs` endpoint to list all accessible organizations
+1. **Enterprise Organization Discovery**: Uses `/enterprises/{enterprise}/orgs` endpoint to list organizations within your specific enterprise
 2. **Member Enumeration**: For each org, fetches all members using `/orgs/{org}/members`
 3. **User Details**: Retrieves detailed user information including:
    - Username and display name
@@ -155,19 +174,26 @@ Issues are created with:
 
 ### Common Issues
 
-1. **"No organizations found"**
-   - Check PAT has `admin:org` scope
+1. **"ENTERPRISE_SLUG environment variable is required"**
+   - Ensure you've set the `ENTERPRISE_SLUG` repository variable
+   - Verify the enterprise slug matches your enterprise URL
+   - Double-check the variable name is exactly `ENTERPRISE_SLUG`
+
+2. **"No organizations found"**
+   - Check PAT has `read:enterprise` scope
    - Verify PAT hasn't expired
    - Ensure PAT is from an account with enterprise access
+   - Confirm the enterprise slug is correct
 
-2. **"Rate limit exceeded"**
+3. **"Rate limit exceeded"**
    - Pipeline includes delays between API calls
    - GitHub Enterprise typically has higher rate limits
    - Workflow will retry automatically
 
-3. **"Permission denied"**
+4. **"Permission denied"**
    - Verify all required scopes are granted
-   - Check if PAT account has access to target organizations
+   - Check if PAT account has access to target enterprise
+   - Ensure PAT account has enterprise member/admin access
 
 ## 📞 Support
 
