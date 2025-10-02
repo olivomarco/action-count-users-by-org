@@ -106,15 +106,38 @@ async function collectEnterpriseUsers() {
     // Sort organizations by name
     organizationData.sort((a, b) => a.name.localeCompare(b.name));
 
+    // Calculate unique users across all organizations
+    const allUsernames = new Set();
+    const userFirstOrg = new Map(); // Track which org a user first appears in
+
+    // First pass: identify unique users and their "first" organization (alphabetically)
+    for (const org of organizationData) {
+      for (const user of org.users) {
+        if (!allUsernames.has(user.username)) {
+          userFirstOrg.set(user.username, org.name);
+        }
+        allUsernames.add(user.username);
+      }
+    }
+
+    // Second pass: calculate unique user counts per organization
+    for (const org of organizationData) {
+      org.uniqueUserCount = org.users.filter(user => 
+        userFirstOrg.get(user.username) === org.name
+      ).length;
+    }
+
     // Calculate totals
     const totalUsers = organizationData.reduce((sum, org) => sum + org.userCount, 0);
+    const totalUniqueUsers = allUsernames.size;
     const totalOrgs = organizationData.length;
 
     const result = {
       generatedAt: new Date().toISOString(),
       summary: {
         totalOrganizations: totalOrgs,
-        totalUsers: totalUsers
+        totalUsers: totalUsers,
+        totalUniqueUsers: totalUniqueUsers
       },
       organizations: organizationData
     };
@@ -122,7 +145,7 @@ async function collectEnterpriseUsers() {
     // Write data to file for the next step
     fs.writeFileSync('users-data.json', JSON.stringify(result, null, 2));
     
-    console.log(`✅ Successfully collected data from ${totalOrgs} organizations with ${totalUsers} total users`);
+    console.log(`✅ Successfully collected data from ${totalOrgs} organizations with ${totalUsers} total users (${totalUniqueUsers} unique)`);
     console.log('Data written to users-data.json');
 
     return result;
