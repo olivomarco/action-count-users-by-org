@@ -50,7 +50,7 @@ The pipeline requires a GitHub Personal Access Token with **full enterprise acce
 
 The pipeline requires your specific enterprise slug to be configured as a repository variable.
 
-#### Setup Enterprise Variable:
+#### Setup Enterprise Variable
 
 1. **Find Your Enterprise Slug**:
    - Your enterprise slug is the name in your enterprise URL

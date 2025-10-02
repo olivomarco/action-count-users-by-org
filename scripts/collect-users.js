@@ -22,9 +22,12 @@ async function collectEnterpriseUsers() {
   try {
     // Get all organizations in the specific enterprise
     console.log(`Fetching organizations for enterprise: ${enterpriseSlug}`);
-    const orgsResponse = await octokit.rest.enterprises.listOrgs({
+    const orgsResponse = await octokit.request('GET /enterprises/{enterprise}/orgs', {
       enterprise: enterpriseSlug,
-      per_page: 100
+      per_page: 100,
+      headers: {
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
     });
 
     if (orgsResponse.data.length === 0) {
