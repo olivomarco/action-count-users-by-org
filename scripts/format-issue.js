@@ -36,7 +36,7 @@ function formatIssueContent() {
       ? org.description.substring(0, 67) + '...' 
       : org.description;
     
-    issueContent += `| [${org.displayName}](${org.url}) | **${org.userCount}** | **${org.uniqueUserCount}** | ${description} |\n`;
+    issueContent += `| [${org.displayName}](https://github.com/${org.name}) | **${org.userCount}** | **${org.uniqueUserCount}** | ${description} |\n`;
   }
 
   issueContent += `
