@@ -1,0 +1,34 @@
+{
+  "name": "enterprise-user-report",
+  "version": "1.0.0",
+  "description": "GitHub Actions pipeline for generating enterprise user reports",
+  "main": "scripts/collect-users.js",
+  "scripts": {
+    "collect": "node scripts/collect-users.js",
+    "format": "node scripts/format-issue.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "github",
+    "enterprise",
+    "users",
+    "automation",
+    "reporting"
+  ],
+  "author": "Enterprise IT Team",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^20.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/rai-pipeline.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/rai-pipeline/issues"
+  },
+  "homepage": "https://github.com/your-org/rai-pipeline#readme"
+}

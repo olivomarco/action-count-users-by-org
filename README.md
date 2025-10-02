@@ -1,0 +1,183 @@
+# Enterprise User Report Pipeline 📊
+
+This repository contains an automated GitHub Actions pipeline that generates nightly reports of all users across GitHub Enterprise Cloud organizations. The pipeline creates detailed issues with user counts and comprehensive user information for management review.
+
+## 🚀 Features
+
+- **Automated Scheduling**: Runs every night at 2 AM UTC
+- **Manual Triggering**: Can be triggered manually via GitHub Actions UI
+- **Comprehensive Reporting**: Provides both summary tables and detailed user information
+- **Sorted Output**: Organizations and users are alphabetically sorted for easy navigation
+- **Error Handling**: Pipeline fails fast if any issues occur during data collection
+- **Enterprise API Integration**: Uses GitHub Enterprise Cloud REST APIs
+
+## 📋 Requirements
+
+### Personal Access Token (PAT)
+
+The pipeline requires a GitHub Personal Access Token with **full enterprise access**. The PAT must have the following scopes:
+
+#### Required Scopes
+
+- `admin:org` - Full control of organizations and teams, read and write org projects
+- `read:user` - Read all user profile data  
+- `user:email` - Access user email addresses (primary and public)
+- `read:enterprise` - Read enterprise profile data
+
+#### Why These Permissions Are Needed
+
+- **`admin:org`**: Required to list all organizations in the enterprise and access organization membership information
+- **`read:user`**: Needed to fetch detailed user profile information (name, company, location)
+- **`user:email`**: Required to access user email addresses for the reports
+- **`read:enterprise`**: Necessary for enterprise-level organization discovery
+
+### Token Setup Instructions
+
+1. **Create PAT**:
+   - Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Click "Generate new token (classic)"
+   - Set expiration as needed (recommend 90 days for security)
+   - Select the required scopes listed above
+
+2. **Configure Repository Secret**:
+   - Go to your repository Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `ENTERPRISE_PAT`
+   - Value: Your generated PAT
+   - Click "Add secret"
+
+## 🗂️ Repository Structure
+
+```text
+.
+├── .github/
+│   └── workflows/
+│       └── enterprise-user-report.yml  # Main GitHub Actions workflow
+├── scripts/
+│   ├── collect-users.js                # Data collection script
+│   └── format-issue.js                 # Issue formatting script
+├── package.json                        # Node.js dependencies
+└── README.md                          # This documentation
+```
+
+## 🔄 How It Works
+
+### 1. Scheduled Execution
+
+The pipeline runs automatically every night at 2 AM UTC using a cron schedule:
+
+```yaml
+schedule:
+  - cron: '0 2 * * *'
+```
+
+### 2. Data Collection Process
+
+1. **Organization Discovery**: Uses `/orgs` endpoint to list all accessible organizations
+2. **Member Enumeration**: For each org, fetches all members using `/orgs/{org}/members`
+3. **User Details**: Retrieves detailed user information including:
+   - Username and display name
+   - Organization role (admin/member)
+   - Company and location
+   - Email address
+   - Profile and avatar URLs
+
+### 3. Report Generation
+
+1. **Summary Table**: Shows organization names, user counts, and descriptions
+2. **Detailed Tables**: Per-organization tables with complete user information
+3. **Sorting**: All data sorted alphabetically for consistent presentation
+
+### 4. Issue Creation
+
+- Creates a new issue with date in title for chronological sorting
+- Adds labels: `enterprise-report`, `automated`
+- Issue title format: `Enterprise User Report - YYYY-MM-DD`
+
+## 📊 Report Format
+
+Each generated report includes:
+
+### Summary Section
+
+- Total organization count
+- Total user count across all organizations
+- Summary table with organization names, user counts, and descriptions
+
+### Detailed Section
+
+- Per-organization user tables
+- User information includes:
+  - Username (linked to GitHub profile)
+  - Display name
+  - Organization role
+  - Company
+  - Location
+
+## 🔧 Manual Execution
+
+To run the pipeline manually:
+
+1. Go to your repository on GitHub
+2. Click "Actions" tab
+3. Select "Enterprise User Report" workflow
+4. Click "Run workflow" button
+5. Confirm by clicking "Run workflow"
+
+## ⚠️ Error Handling
+
+The pipeline is configured to **fail fast** on any errors:
+
+- Missing or invalid PAT will cause immediate failure
+- API rate limiting will cause delays but eventual success
+- Individual user data failures are logged but don't stop processing
+- Organization access issues will terminate the pipeline
+- Any script errors will fail the entire workflow
+
+## 🔒 Security Considerations
+
+- PAT is stored as a repository secret and never exposed in logs
+- All API calls use HTTPS
+- No sensitive data is written to temporary files
+- Token permissions follow principle of least privilege for required functionality
+- Generated issues contain only public profile information
+
+## 📅 Issue Management
+
+Issues are created with:
+
+- **Consistent naming**: `Enterprise User Report - YYYY-MM-DD`
+- **Chronological sorting**: Dates in titles ensure natural ordering
+- **Clear labeling**: `enterprise-report` and `automated` labels
+- **Management-friendly format**: Tables and sections optimized for quick review
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **"No organizations found"**
+   - Check PAT has `admin:org` scope
+   - Verify PAT hasn't expired
+   - Ensure PAT is from an account with enterprise access
+
+2. **"Rate limit exceeded"**
+   - Pipeline includes delays between API calls
+   - GitHub Enterprise typically has higher rate limits
+   - Workflow will retry automatically
+
+3. **"Permission denied"**
+   - Verify all required scopes are granted
+   - Check if PAT account has access to target organizations
+
+## 📞 Support
+
+For issues with this pipeline:
+
+1. Check the Actions tab for detailed error logs
+2. Verify PAT permissions and expiration
+3. Review organization access for the PAT account
+4. Check GitHub Enterprise Cloud API status
+
+---
+
+*This pipeline uses GitHub Enterprise Cloud REST API endpoints as documented [here](https://docs.github.com/en/enterprise-cloud@latest/rest)*
