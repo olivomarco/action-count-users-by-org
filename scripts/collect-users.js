@@ -3,31 +3,22 @@ const fs = require('fs');
 
 async function collectEnterpriseUsers() {
   const token = process.env.GITHUB_TOKEN;
-  const enterpriseSlug = process.env.ENTERPRISE_SLUG;
   
   if (!token) {
     throw new Error('GITHUB_TOKEN environment variable is required');
-  }
-  
-  if (!enterpriseSlug) {
-    throw new Error('ENTERPRISE_SLUG environment variable is required');
   }
 
   const octokit = new Octokit({
     auth: token,
   });
 
-  console.log(`Starting enterprise user data collection for: ${enterpriseSlug}`);
+  console.log(`Starting enterprise user data collection...`);
 
   try {
-    // Get all organizations in the specific enterprise
-    console.log(`Fetching organizations for enterprise: ${enterpriseSlug}`);
-    const orgsResponse = await octokit.request('GET /enterprises/{enterprise}/orgs', {
-      enterprise: enterpriseSlug,
-      per_page: 100,
-      headers: {
-        'X-GitHub-Api-Version': '2022-11-28'
-      }
+    // Get all organizations for the authenticated user (within enterprise scope)
+    console.log(`Fetching organizations accessible to the authenticated user...`);
+    const orgsResponse = await octokit.rest.orgs.listForAuthenticatedUser({
+      per_page: 100
     });
 
     if (orgsResponse.data.length === 0) {
