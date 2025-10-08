@@ -6,7 +6,10 @@ This repository contains an automated GitHub Actions pipeline that generates nig
 
 - **Automated Scheduling**: Runs every night at 2 AM UTC
 - **Manual Triggering**: Can be triggered manually via GitHub Actions UI
-- **Comprehensive Reporting**: Provides both summary tables and detailed user information
+- **Comprehensive Reporting**: Provides both summary tables and detailed user information including:
+  - Organization members with their roles
+  - Outside collaborators with repository access
+  - Distinction between different user types for license tracking
 - **Sorted Output**: Organizations and users are alphabetically sorted for easy navigation
 - **Error Handling**: Pipeline fails fast if any issues occur during data collection
 - **Enterprise API Integration**: Uses GitHub Enterprise Cloud REST APIs
@@ -26,8 +29,8 @@ The pipeline requires a GitHub Personal Access Token with **full enterprise acce
 
 #### Why These Permissions Are Needed
 
-- **`admin:org`**: Required to list all organizations in the enterprise and access organization membership information
-- **`read:user`**: Needed to fetch detailed user profile information (name, company, location)
+- **`admin:org`**: Required to list all organizations in the enterprise, access organization membership information, and list outside collaborators
+- **`read:user`**: Needed to fetch detailed user profile information (name, company, location) for both members and outside collaborators
 - **`user:email`**: Required to access user email addresses for the reports
 - **`read:enterprise`**: Necessary for enterprise-level organization discovery
 
@@ -94,17 +97,21 @@ schedule:
 
 1. **Enterprise Organization Discovery**: Uses `/enterprises/{enterprise}/orgs` endpoint to list organizations within your specific enterprise
 2. **Member Enumeration**: For each org, fetches all members using `/orgs/{org}/members`
-3. **User Details**: Retrieves detailed user information including:
+3. **Outside Collaborator Collection**: For each org, fetches outside collaborators using `/orgs/{org}/outside_collaborators`
+4. **User Details**: Retrieves detailed user information for both members and outside collaborators including:
    - Username and display name
-   - Organization role (admin/member)
+   - Organization role (admin/member) or outside collaborator status
    - Company and location
    - Email address
    - Profile and avatar URLs
 
 ### 3. Report Generation
 
-1. **Summary Table**: Shows organization names, user counts, and descriptions
-2. **Detailed Tables**: Per-organization tables with complete user information
+1. **Summary Table**: Shows organization names with breakdown of members vs. outside collaborators, user counts, and descriptions
+2. **Detailed Tables**: Per-organization tables with:
+   - Organization members with their roles (admin/member)
+   - Outside collaborators with repository access but no organization membership
+   - Separate sections clearly identifying user types for license management
 3. **Sorting**: All data sorted alphabetically for consistent presentation
 
 ### 4. Issue Creation

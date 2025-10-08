@@ -40,7 +40,21 @@ async function collectEnterpriseUsers() {
           per_page: 100
         });
 
+        // Get outside collaborators
+        let outsideCollaborators = [];
+        try {
+          const collaboratorsResponse = await octokit.rest.orgs.listOutsideCollaborators({
+            org: org.login,
+            per_page: 100
+          });
+          outsideCollaborators = collaboratorsResponse.data;
+          console.log(`  Found ${outsideCollaborators.length} outside collaborators`);
+        } catch (collaboratorError) {
+          console.warn(`Could not fetch outside collaborators for ${org.login}: ${collaboratorError.message}`);
+        }
+
         const members = [];
+        const collaborators = [];
         
         // Get detailed information for each member
         for (const member of membersResponse.data) {
@@ -60,6 +74,7 @@ async function collectEnterpriseUsers() {
               username: member.login,
               displayName: userResponse.data.name || member.login,
               role: membershipResponse.data.role,
+              userType: 'member',
               company: userResponse.data.company || 'N/A',
               location: userResponse.data.location || 'N/A',
               email: userResponse.data.email || 'N/A',
@@ -77,6 +92,7 @@ async function collectEnterpriseUsers() {
               username: member.login,
               displayName: member.login,
               role: 'unknown',
+              userType: 'member',
               company: 'N/A',
               location: 'N/A',
               email: 'N/A',
@@ -86,16 +102,61 @@ async function collectEnterpriseUsers() {
           }
         }
 
+        // Get detailed information for each outside collaborator
+        for (const collaborator of outsideCollaborators) {
+          try {
+            // Get user profile information
+            const userResponse = await octokit.rest.users.getByUsername({
+              username: collaborator.login
+            });
+
+            collaborators.push({
+              username: collaborator.login,
+              displayName: userResponse.data.name || collaborator.login,
+              role: 'outside_collaborator',
+              userType: 'outside_collaborator',
+              company: userResponse.data.company || 'N/A',
+              location: userResponse.data.location || 'N/A',
+              email: userResponse.data.email || 'N/A',
+              profileUrl: collaborator.html_url,
+              avatarUrl: collaborator.avatar_url
+            });
+
+            // Add small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+          } catch (collaboratorError) {
+            console.warn(`Failed to get details for outside collaborator ${collaborator.login} in ${org.login}:`, collaboratorError.message);
+            // Add basic info even if detailed fetch fails
+            collaborators.push({
+              username: collaborator.login,
+              displayName: collaborator.login,
+              role: 'outside_collaborator',
+              userType: 'outside_collaborator',
+              company: 'N/A',
+              location: 'N/A',
+              email: 'N/A',
+              profileUrl: collaborator.html_url,
+              avatarUrl: collaborator.avatar_url
+            });
+          }
+        }
+
+        // Combine members and collaborators, sorted by username
+        const allUsers = [...members, ...collaborators].sort((a, b) => a.username.localeCompare(b.username));
+
         organizationData.push({
           name: org.login,
           displayName: org.name || org.login,
           description: org.description || 'No description',
-          userCount: members.length,
-          users: members.sort((a, b) => a.username.localeCompare(b.username)),
+          memberCount: members.length,
+          outsideCollaboratorCount: collaborators.length,
+          userCount: allUsers.length,
+          users: allUsers,
           url: org.html_url
         });
 
-        console.log(`✓ Collected ${members.length} users from ${org.login}`);
+        console.log(`✓ Collected ${members.length} members + ${collaborators.length} outside collaborators = ${allUsers.length} total users from ${org.login}`);
         
       } catch (orgError) {
         console.error(`Failed to process organization ${org.login}:`, orgError.message);
