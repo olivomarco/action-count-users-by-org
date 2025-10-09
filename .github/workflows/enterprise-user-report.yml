@@ -33,6 +33,7 @@ jobs:
       run: node scripts/collect-users.js
       env:
         GITHUB_TOKEN: ${{ secrets.ENTERPRISE_PAT }}
+        GITHUB_ENTERPRISE: ${{ vars.ENTERPRISE_SLUG }}
         GITHUB_REPOSITORY: ${{ github.repository }}
     
     - name: Format issue content

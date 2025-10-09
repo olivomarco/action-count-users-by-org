@@ -25,14 +25,16 @@ The pipeline requires a GitHub Personal Access Token with **full enterprise acce
 - `admin:org` - Full control of organizations and teams, read and write org projects
 - `read:user` - Read all user profile data  
 - `user:email` - Access user email addresses (primary and public)
-- `read:enterprise` - Read enterprise profile data
+- `read:enterprise` - Read enterprise profile data and license information
+- `workflow` - Update GitHub Actions workflows
 
 #### Why These Permissions Are Needed
 
 - **`admin:org`**: Required to list all organizations in the enterprise, access organization membership information, and list outside collaborators
 - **`read:user`**: Needed to fetch detailed user profile information (name, company, location) for both members and outside collaborators
 - **`user:email`**: Required to access user email addresses for the reports
-- **`read:enterprise`**: Necessary for enterprise-level organization discovery
+- **`read:enterprise`**: Necessary for enterprise-level organization discovery and license consumption data
+- **`workflow`**: Required to create issues and interact with GitHub Actions from the workflow
 
 ### Token Setup Instructions
 
@@ -51,7 +53,7 @@ The pipeline requires a GitHub Personal Access Token with **full enterprise acce
 
 ### Enterprise Configuration
 
-The pipeline requires your specific enterprise slug to be configured as a repository variable.
+The pipeline requires your specific enterprise slug to be configured as a repository variable to enable license information tracking.
 
 #### Setup Enterprise Variable
 
@@ -67,6 +69,8 @@ The pipeline requires your specific enterprise slug to be configured as a reposi
    - Name: `ENTERPRISE_SLUG`
    - Value: Your enterprise slug (e.g., `my-company`)
    - Click "Add variable"
+
+**Note**: The `ENTERPRISE_SLUG` variable is **required** for license information to be included in reports. Without it, the pipeline will collect user data but won't be able to retrieve license types (Visual Studio with GitHub Enterprise vs. GitHub Enterprise only).
 
 ## 🗂️ Repository Structure
 
@@ -107,12 +111,17 @@ schedule:
 
 ### 3. Report Generation
 
-1. **Summary Table**: Shows organization names with breakdown of members vs. outside collaborators, user counts, and descriptions
+1. **Summary Table**: Shows organization names with:
+   - Breakdown of members vs. outside collaborators
+   - License distribution (Visual Studio with GitHub Enterprise vs. GitHub Enterprise only)
+   - User counts
+   - Descriptions
 2. **Detailed Tables**: Per-organization tables with:
-   - Organization members with their roles (admin/member)
-   - Outside collaborators with repository access but no organization membership
+   - Organization members with their roles (admin/member) and license types
+   - Outside collaborators with repository access and license types
    - Separate sections clearly identifying user types for license management
 3. **Sorting**: All data sorted alphabetically for consistent presentation
+4. **License Information**: Shows which users have Visual Studio subscriptions vs. standard GitHub Enterprise licenses
 
 ### 4. Issue Creation
 
@@ -128,7 +137,7 @@ Each generated report includes:
 
 - Total organization count
 - Total user count across all organizations
-- Summary table with organization names, user counts, and descriptions
+- Summary table with organization names, user counts, license breakdown, and descriptions
 
 ### Detailed Section
 
@@ -136,9 +145,24 @@ Each generated report includes:
 - User information includes:
   - Username (linked to GitHub profile)
   - Display name
-  - Organization role
+  - Organization role (for members)
+  - **License Type**: Visual Studio with GitHub Enterprise or GitHub Enterprise only
   - Company
   - Location
+
+### License Information
+
+The report distinguishes between two license types:
+
+- **🟦 Visual Studio with GitHub Enterprise** (VS+GitHub): Complete Visual Studio subscription including GitHub Enterprise
+- **🟩 GitHub Enterprise**: Standard GitHub Enterprise license without Visual Studio
+
+License information helps managers:
+
+- Track license allocation across organizations
+- Identify which organizations use which license types
+- Ensure proper license assignment
+- Monitor license consumption for budget planning
 
 ## 🔧 Manual Execution
 
@@ -186,18 +210,24 @@ Issues are created with:
    - Verify the enterprise slug matches your enterprise URL
    - Double-check the variable name is exactly `ENTERPRISE_SLUG`
 
-2. **"No organizations found"**
+2. **"Could not fetch enterprise license data"**
+   - Verify PAT has `read:enterprise` scope
+   - Ensure the enterprise slug is correct
+   - Confirm the PAT account has enterprise admin access
+   - Note: License data is optional; the pipeline will continue without it
+
+3. **"No organizations found"**
    - Check PAT has `read:enterprise` scope
    - Verify PAT hasn't expired
    - Ensure PAT is from an account with enterprise access
    - Confirm the enterprise slug is correct
 
-3. **"Rate limit exceeded"**
+4. **"Rate limit exceeded"**
    - Pipeline includes delays between API calls
    - GitHub Enterprise typically has higher rate limits
    - Workflow will retry automatically
 
-4. **"Permission denied"**
+5. **"Permission denied"**
    - Verify all required scopes are granted
    - Check if PAT account has access to target enterprise
    - Ensure PAT account has enterprise member/admin access
@@ -213,4 +243,4 @@ For issues with this pipeline:
 
 ---
 
-*This pipeline uses GitHub Enterprise Cloud REST API endpoints as documented [here](https://docs.github.com/en/enterprise-cloud@latest/rest)*
+*This pipeline uses [GitHub Enterprise Cloud REST API endpoints](https://docs.github.com/en/enterprise-cloud@latest/rest)*

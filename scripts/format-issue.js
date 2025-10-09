@@ -26,8 +26,8 @@ function formatIssueContent() {
 
 ## 📊 Organization Summary
 
-| Organization | Total Users | Members | Outside Collaborators | Unique Users | Description |
-|-------------|-------------|---------|---------------------|-------------|-------------|
+| Organization | Total Users | Members | Outside Collaborators | VS+GitHub | GitHub Only | Unknown | Unique Users | Description |
+|-------------|-------------|---------|---------------------|-----------|-------------|---------|-------------|-------------|
 `;
 
   // Add summary table rows
@@ -38,8 +38,16 @@ function formatIssueContent() {
     
     const memberCount = org.memberCount || 0;
     const outsideCollaboratorCount = org.outsideCollaboratorCount || 0;
+    const vsLicenseCount = org.visualStudioLicenseCount || 0;
+    const gheLicenseCount = org.githubEnterpriseLicenseCount || 0;
+    const unknownLicenseCount = org.unknownLicenseCount || 0;
     
-    issueContent += `| [${org.displayName}](https://github.com/${org.name}) | **${org.userCount}** | ${memberCount} | ${outsideCollaboratorCount} | **${org.uniqueUserCount}** | ${description} |\n`;
+    // Format license counts - show in bold if non-zero, otherwise just number
+    const vsFormatted = vsLicenseCount > 0 ? `**${vsLicenseCount}**` : vsLicenseCount;
+    const gheFormatted = gheLicenseCount > 0 ? `**${gheLicenseCount}**` : gheLicenseCount;
+    const unknownFormatted = unknownLicenseCount > 0 ? `⚠️ ${unknownLicenseCount}` : unknownLicenseCount;
+    
+    issueContent += `| [${org.displayName}](https://github.com/${org.name}) | **${org.userCount}** | ${memberCount} | ${outsideCollaboratorCount} | ${vsFormatted} | ${gheFormatted} | ${unknownFormatted} | **${org.uniqueUserCount}** | ${description} |\n`;
   }
 
   issueContent += `
@@ -53,9 +61,24 @@ function formatIssueContent() {
   for (const org of data.organizations) {
     const memberCount = org.memberCount || 0;
     const outsideCollaboratorCount = org.outsideCollaboratorCount || 0;
+    const vsLicenseCount = org.visualStudioLicenseCount || 0;
+    const gheLicenseCount = org.githubEnterpriseLicenseCount || 0;
+    const unknownLicenseCount = org.unknownLicenseCount || 0;
+    
+    // Build license breakdown string
+    let licenseInfo = '';
+    if (vsLicenseCount > 0 || gheLicenseCount > 0) {
+      const parts = [];
+      if (vsLicenseCount > 0) parts.push(`${vsLicenseCount} VS+GitHub`);
+      if (gheLicenseCount > 0) parts.push(`${gheLicenseCount} GitHub Enterprise`);
+      if (unknownLicenseCount > 0) parts.push(`${unknownLicenseCount} unknown`);
+      licenseInfo = ` - Licenses: ${parts.join(', ')}`;
+    } else if (unknownLicenseCount > 0) {
+      licenseInfo = ` - ⚠️ License info not available`;
+    }
     
     issueContent += `
-### 🏢 ${org.displayName} (${org.userCount} users: ${memberCount} members, ${outsideCollaboratorCount} outside collaborators)
+### 🏢 ${org.displayName} (${org.userCount} users: ${memberCount} members, ${outsideCollaboratorCount} outside collaborators${licenseInfo})
 `;
 
     // First show organization members
@@ -64,8 +87,8 @@ function formatIssueContent() {
       issueContent += `
 #### 👥 Organization Members (${memberCount})
 
-| Username | Display Name | Role | Company | Location |
-|----------|-------------|------|---------|----------|
+| Username | Display Name | Role | License Type | Company | Location |
+|----------|-------------|------|--------------|---------|----------|
 `;
 
       for (const user of members) {
@@ -73,7 +96,17 @@ function formatIssueContent() {
         const company = user.company !== 'N/A' ? user.company : '-';
         const location = user.location !== 'N/A' ? user.location : '-';
         
-        issueContent += `| [@${user.username}](${user.profileUrl}) | ${displayName} | \`${user.role}\` | ${company} | ${location} |\n`;
+        // Format license type
+        let licenseType = '-';
+        if (user.visualStudioSubscriptionUser) {
+          licenseType = '🟦 **VS+GitHub**';
+        } else if (user.licenseType === 'enterprise') {
+          licenseType = '🟩 GitHub Enterprise';
+        } else if (user.licenseType) {
+          licenseType = user.licenseType;
+        }
+        
+        issueContent += `| [@${user.username}](${user.profileUrl}) | ${displayName} | \`${user.role}\` | ${licenseType} | ${company} | ${location} |\n`;
       }
     }
 
@@ -83,8 +116,8 @@ function formatIssueContent() {
       issueContent += `
 #### 🤝 Outside Collaborators (${outsideCollaboratorCount})
 
-| Username | Display Name | Company | Location |
-|----------|-------------|---------|----------|
+| Username | Display Name | License Type | Company | Location |
+|----------|-------------|--------------|---------|----------|
 `;
 
       for (const user of collaborators) {
@@ -92,7 +125,17 @@ function formatIssueContent() {
         const company = user.company !== 'N/A' ? user.company : '-';
         const location = user.location !== 'N/A' ? user.location : '-';
         
-        issueContent += `| [@${user.username}](${user.profileUrl}) | ${displayName} | ${company} | ${location} |\n`;
+        // Format license type
+        let licenseType = '-';
+        if (user.visualStudioSubscriptionUser) {
+          licenseType = '🟦 **VS+GitHub**';
+        } else if (user.licenseType === 'enterprise') {
+          licenseType = '🟩 GitHub Enterprise';
+        } else if (user.licenseType) {
+          licenseType = user.licenseType;
+        }
+        
+        issueContent += `| [@${user.username}](${user.profileUrl}) | ${displayName} | ${licenseType} | ${company} | ${location} |\n`;
       }
     }
 
@@ -121,13 +164,24 @@ Users who appear in multiple organizations are counted uniquely based on the fir
 - **Users**: Total number of memberships across all organizations
 - **Unique Users**: Users counted only once, attributed to their first organization alphabetically
 
-### 📋 Actions for Managers
+### � License Types
+
+License information is retrieved from the GitHub Enterprise licensing API:
+
+- **🟦 VS+GitHub (Visual Studio with GitHub Enterprise)**: Complete Visual Studio subscription including GitHub Enterprise
+- **🟩 GitHub Enterprise**: Standard GitHub Enterprise license without Visual Studio
+- **⚠️ Unknown**: License information not available (requires enterprise admin access and GITHUB_ENTERPRISE environment variable)
+
+Each organization may have a mix of different license types. Both members and outside collaborators consume licenses.
+
+### �📋 Actions for Managers
 
 1. **Review user counts** in the summary table above (members, outside collaborators, and unique totals)
-2. **Check organization members** and their roles in each organization
-3. **Review outside collaborators** who have repository access but aren't organization members
-4. **Verify user information** is up to date and licenses are properly assigned
-5. **Report any discrepancies** to the IT team
+2. **Check license distribution** to ensure proper allocation between Visual Studio and GitHub Enterprise licenses
+3. **Review organization members** and their roles in each organization
+4. **Review outside collaborators** who have repository access but aren't organization members
+5. **Verify user information** is up to date and licenses are properly assigned
+6. **Report any discrepancies** to the IT team
 
 ### 🔍 Understanding User Types
 

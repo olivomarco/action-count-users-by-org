@@ -3,6 +3,7 @@ const fs = require('fs');
 
 async function collectEnterpriseUsers() {
   const token = process.env.GITHUB_TOKEN;
+  const enterpriseSlug = process.env.GITHUB_ENTERPRISE;
   
   if (!token) {
     throw new Error('GITHUB_TOKEN environment variable is required');
@@ -13,6 +14,39 @@ async function collectEnterpriseUsers() {
   });
 
   console.log(`Starting enterprise user data collection...`);
+
+  // Fetch license information if enterprise slug is provided
+  let licenseData = null;
+  if (enterpriseSlug) {
+    try {
+      console.log(`Fetching enterprise license data for ${enterpriseSlug}...`);
+      const licenseResponse = await octokit.request('GET /enterprises/{enterprise}/consumed-licenses', {
+        enterprise: enterpriseSlug,
+        per_page: 100,
+        headers: {
+          'X-GitHub-Api-Version': '2022-11-28'
+        }
+      });
+      
+      licenseData = new Map();
+      for (const user of licenseResponse.data.users) {
+        if (user.github_com_login) {
+          licenseData.set(user.github_com_login, {
+            licenseType: user.license_type, // 'enterprise' or 'visual_studio'
+            visualStudioSubscriptionUser: user.visual_studio_subscription_user,
+            visualStudioLicenseStatus: user.visual_studio_license_status,
+            memberRoles: user.github_com_member_roles || []
+          });
+        }
+      }
+      console.log(`✓ Fetched license data for ${licenseData.size} users`);
+    } catch (licenseError) {
+      console.warn(`⚠️  Could not fetch enterprise license data: ${licenseError.message}`);
+      console.warn(`   Make sure the token has 'read:enterprise' scope and the enterprise slug '${enterpriseSlug}' is correct.`);
+    }
+  } else {
+    console.log('ℹ️  GITHUB_ENTERPRISE not set - license information will not be included');
+  }
 
   try {
     // Get all organizations for the authenticated user (within enterprise scope)
@@ -79,7 +113,9 @@ async function collectEnterpriseUsers() {
               location: userResponse.data.location || 'N/A',
               email: userResponse.data.email || 'N/A',
               profileUrl: member.html_url,
-              avatarUrl: member.avatar_url
+              avatarUrl: member.avatar_url,
+              licenseType: licenseData?.get(member.login)?.licenseType || null,
+              visualStudioSubscriptionUser: licenseData?.get(member.login)?.visualStudioSubscriptionUser || false
             });
 
             // Add small delay to avoid rate limiting
@@ -97,7 +133,9 @@ async function collectEnterpriseUsers() {
               location: 'N/A',
               email: 'N/A',
               profileUrl: member.html_url,
-              avatarUrl: member.avatar_url
+              avatarUrl: member.avatar_url,
+              licenseType: licenseData?.get(member.login)?.licenseType || null,
+              visualStudioSubscriptionUser: licenseData?.get(member.login)?.visualStudioSubscriptionUser || false
             });
           }
         }
@@ -119,7 +157,9 @@ async function collectEnterpriseUsers() {
               location: userResponse.data.location || 'N/A',
               email: userResponse.data.email || 'N/A',
               profileUrl: collaborator.html_url,
-              avatarUrl: collaborator.avatar_url
+              avatarUrl: collaborator.avatar_url,
+              licenseType: licenseData?.get(collaborator.login)?.licenseType || null,
+              visualStudioSubscriptionUser: licenseData?.get(collaborator.login)?.visualStudioSubscriptionUser || false
             });
 
             // Add small delay to avoid rate limiting
@@ -137,13 +177,20 @@ async function collectEnterpriseUsers() {
               location: 'N/A',
               email: 'N/A',
               profileUrl: collaborator.html_url,
-              avatarUrl: collaborator.avatar_url
+              avatarUrl: collaborator.avatar_url,
+              licenseType: licenseData?.get(collaborator.login)?.licenseType || null,
+              visualStudioSubscriptionUser: licenseData?.get(collaborator.login)?.visualStudioSubscriptionUser || false
             });
           }
         }
 
         // Combine members and collaborators, sorted by username
         const allUsers = [...members, ...collaborators].sort((a, b) => a.username.localeCompare(b.username));
+
+        // Calculate license counts for this organization
+        const vsLicenseCount = allUsers.filter(u => u.visualStudioSubscriptionUser === true).length;
+        const gheLicenseCount = allUsers.filter(u => u.licenseType === 'enterprise' && u.visualStudioSubscriptionUser !== true).length;
+        const unknownLicenseCount = allUsers.filter(u => !u.licenseType).length;
 
         organizationData.push({
           name: org.login,
@@ -152,6 +199,9 @@ async function collectEnterpriseUsers() {
           memberCount: members.length,
           outsideCollaboratorCount: collaborators.length,
           userCount: allUsers.length,
+          visualStudioLicenseCount: vsLicenseCount,
+          githubEnterpriseLicenseCount: gheLicenseCount,
+          unknownLicenseCount: unknownLicenseCount,
           users: allUsers,
           url: org.html_url
         });
