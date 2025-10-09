@@ -100,7 +100,7 @@ function formatIssueContent() {
         let licenseType = '-';
         if (user.visualStudioSubscriptionUser) {
           licenseType = '🟦 **VS+GitHub**';
-        } else if (user.licenseType === 'enterprise') {
+        } else if (user.licenseType && user.licenseType.toLowerCase() === 'enterprise') {
           licenseType = '🟩 GitHub Enterprise';
         } else if (user.licenseType) {
           licenseType = user.licenseType;
@@ -129,7 +129,7 @@ function formatIssueContent() {
         let licenseType = '-';
         if (user.visualStudioSubscriptionUser) {
           licenseType = '🟦 **VS+GitHub**';
-        } else if (user.licenseType === 'enterprise') {
+        } else if (user.licenseType && user.licenseType.toLowerCase() === 'enterprise') {
           licenseType = '🟩 GitHub Enterprise';
         } else if (user.licenseType) {
           licenseType = user.licenseType;

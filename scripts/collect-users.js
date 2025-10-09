@@ -213,7 +213,7 @@ async function collectEnterpriseUsers() {
 
         // Calculate license counts for this organization
         const vsLicenseCount = allUsers.filter(u => u.visualStudioSubscriptionUser === true).length;
-        const gheLicenseCount = allUsers.filter(u => u.licenseType === 'enterprise' && u.visualStudioSubscriptionUser !== true).length;
+        const gheLicenseCount = allUsers.filter(u => u.licenseType && u.licenseType.toLowerCase() === 'enterprise' && u.visualStudioSubscriptionUser !== true).length;
         const unknownLicenseCount = allUsers.filter(u => !u.licenseType).length;
         
         // Debug: Show sample user license data
