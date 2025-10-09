@@ -20,28 +20,52 @@ async function collectEnterpriseUsers() {
   if (enterpriseSlug) {
     try {
       console.log(`Fetching enterprise license data for ${enterpriseSlug}...`);
-      const licenseResponse = await octokit.request('GET /enterprises/{enterprise}/consumed-licenses', {
-        enterprise: enterpriseSlug,
-        per_page: 100,
-        headers: {
-          'X-GitHub-Api-Version': '2022-11-28'
-        }
-      });
       
+      // Fetch all pages of license data
       licenseData = new Map();
-      for (const user of licenseResponse.data.users) {
-        if (user.github_com_login) {
-          licenseData.set(user.github_com_login, {
-            licenseType: user.license_type, // 'enterprise' or 'visual_studio'
-            visualStudioSubscriptionUser: user.visual_studio_subscription_user,
-            visualStudioLicenseStatus: user.visual_studio_license_status,
-            memberRoles: user.github_com_member_roles || []
-          });
+      let page = 1;
+      let hasMorePages = true;
+      let totalUsersProcessed = 0;
+      
+      while (hasMorePages) {
+        const licenseResponse = await octokit.request('GET /enterprises/{enterprise}/consumed-licenses', {
+          enterprise: enterpriseSlug,
+          per_page: 100,
+          page: page,
+          headers: {
+            'X-GitHub-Api-Version': '2022-11-28'
+          }
+        });
+        
+        console.log(`  Page ${page}: Processing ${licenseResponse.data.users.length} users`);
+        
+        for (const user of licenseResponse.data.users) {
+          if (user.github_com_login) {
+            totalUsersProcessed++;
+            licenseData.set(user.github_com_login, {
+              licenseType: user.license_type,
+              visualStudioSubscriptionUser: user.visual_studio_subscription_user,
+              visualStudioLicenseStatus: user.visual_studio_license_status,
+              memberRoles: user.github_com_member_roles || []
+            });
+            
+            // Debug: Log first few users to verify data structure
+            if (totalUsersProcessed <= 3) {
+              console.log(`  Sample user: ${user.github_com_login} - VS: ${user.visual_studio_subscription_user}, License: ${user.license_type}`);
+            }
+          }
         }
+        
+        // Check if there are more pages
+        hasMorePages = licenseResponse.data.users.length === 100;
+        page++;
       }
-      console.log(`✓ Fetched license data for ${licenseData.size} users`);
+      
+      console.log(`✓ Fetched license data for ${licenseData.size} users across ${page - 1} page(s)`);
+      console.log(`  Total seats consumed: ${licenseResponse.data.total_seats_consumed || 'N/A'}`);
     } catch (licenseError) {
       console.warn(`⚠️  Could not fetch enterprise license data: ${licenseError.message}`);
+      console.warn(`   Status: ${licenseError.status || 'unknown'}`);
       console.warn(`   Make sure the token has 'read:enterprise' scope and the enterprise slug '${enterpriseSlug}' is correct.`);
     }
   } else {
@@ -191,6 +215,13 @@ async function collectEnterpriseUsers() {
         const vsLicenseCount = allUsers.filter(u => u.visualStudioSubscriptionUser === true).length;
         const gheLicenseCount = allUsers.filter(u => u.licenseType === 'enterprise' && u.visualStudioSubscriptionUser !== true).length;
         const unknownLicenseCount = allUsers.filter(u => !u.licenseType).length;
+        
+        // Debug: Show sample user license data
+        if (allUsers.length > 0 && licenseData) {
+          const sampleUser = allUsers[0];
+          console.log(`  License debug for ${org.login}: Sample user ${sampleUser.username} - VS: ${sampleUser.visualStudioSubscriptionUser}, Type: ${sampleUser.licenseType}`);
+          console.log(`  License counts: ${vsLicenseCount} VS+GitHub, ${gheLicenseCount} GitHub Enterprise, ${unknownLicenseCount} unknown`);
+        }
 
         organizationData.push({
           name: org.login,
